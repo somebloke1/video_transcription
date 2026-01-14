@@ -1,0 +1,10 @@
+# Example URLs file for batch processing
+# Lines starting with # are ignored
+# One URL per line
+
+# Short video (already processed - should be fast due to cache)
+https://www.youtube.com/watch?v=fNk_zzaMoSs
+
+# Add more URLs below as needed
+# https://www.youtube.com/watch?v=...
+# https://www.youtube.com/watch?v=...
