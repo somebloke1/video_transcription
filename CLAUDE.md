@@ -4,11 +4,17 @@
 
 A professional video transcription system for educational content (primarily GCP networking videos), designed for learning engineers who need technical documentation from video courses.
 
+## Repository
+
+- **GitHub**: https://github.com/somebloke1/video_transcription (private)
+- **Branch**: main
+
 ## Hardware Environment
 
 - **GPU**: NVIDIA RTX 3090 (24GB VRAM)
 - **OS**: WSL2 Linux (Debian)
 - **Python**: 3.12+ with virtual environment at `.venv`
+- **Package Manager**: uv (preferred) or pip
 
 ## Architecture
 
@@ -117,23 +123,55 @@ transcriptions/
 
 ## Dependencies
 
-### Core
-- FFmpeg (system)
-- PyTorch with CUDA
-- google-genai (for Gemini scripts)
+Managed via `pyproject.toml` with pinned versions for reproducibility.
 
-### ASR-Specific
-- **whisperx**: `uv pip install whisperx`
-- **canary**: `uv pip install "nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git"`
-- **whisper**: `uv pip install openai-whisper`
-- **parakeet/granite**: `uv pip install transformers torchaudio`
+### Installation Groups
 
-### Local-Only Additional
-- `uv pip install autoawq qwen-vl-utils`
+```bash
+# Activate virtual environment first
+source .venv/bin/activate
+
+# Install by use case:
+uv pip install -e ".[gemini]"     # Gemini scripts
+uv pip install -e ".[local]"      # Local-only processing
+uv pip install -e ".[full]"       # Everything (except special installs)
+
+# Special installs (not on PyPI):
+uv pip install whisperx           # WhisperX ASR
+uv pip install "nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git"  # Canary/Parakeet
+```
+
+### Pinned Versions (from working environment)
+
+| Package | Version | Notes |
+|---------|---------|-------|
+| torch | 2.6.0+cu124 | CUDA 12.4 |
+| transformers | 4.57.5 | Granite requires >=4.52.4 |
+| google-genai | 1.57.0 | Gemini API |
+| openai-whisper | 20250625 | Whisper ASR |
+| autoawq | 0.2.9 | Deprecated but functional |
+| peft | 0.18.1 | Granite requirement |
+| pillow | 12.0.0 | Image processing |
+| imagehash | 4.3.2 | Keyframe deduplication |
+
+### System Dependencies
+- FFmpeg (required for audio/video extraction)
 
 ## Environment Variables
 
 - `GOOGLE_API_KEY` - Required for Gemini scripts (get at https://aistudio.google.com/app/apikey)
+
+## System Administration
+
+For commands requiring sudo, use heredoc to pass the password:
+
+```bash
+cat << 'PASS' | sudo -S <command>
+Fjdksl!23
+PASS
+```
+
+This avoids issues with special characters (like `!`) in the password.
 
 ## Known Issues & Solutions
 
@@ -148,6 +186,11 @@ Audio >40s produces garbage. Fixed with VAD-based chunking.
 - Use AWQ quantized version (Qwen2.5-14B-Instruct-AWQ) for local_only
 - Clear orphaned GPU memory: `python clear_gpu.py`
 
+### AutoAWQ Deprecation Warning
+- AutoAWQ is deprecated but still functional with torch 2.6.0
+- Shows deprecation warning on import (can be ignored)
+- Compatibility patch in `compat.py` fixes PytorchGELUTanh import error
+
 ## Technical Notes
 
 ### Prompt Engineering
@@ -158,7 +201,10 @@ Audio >40s produces garbage. Fixed with VAD-based chunking.
 ### Memory Management
 - Models loaded/unloaded between stages
 - `cleanup_gpu()` called after each processing step
-- Batch processing preloads ASR model to avoid per-video reload
+- Smart ASR preloading based on VRAM constraints:
+  - `should_preload_asr()` checks if ASR + next stage fit in VRAM
+  - Small models (WhisperX ~3GB, Canary ~5GB): preloaded for batch efficiency
+  - Large models (Granite ~16GB): loaded per-video to avoid OOM with vision stage (~16GB)
 
 ## Shared Library Architecture
 
@@ -217,23 +263,41 @@ from video_transcription import (
 
 ```
 video_transcription/                   # Project root
-├── CLAUDE.md                          # This file
+├── .gitignore                         # Git ignore patterns
+├── CLAUDE.md                          # This file (agent instructions)
 ├── README.md                          # User-facing documentation
+├── pyproject.toml                     # Package config with pinned deps
+├── requirements.txt                   # Legacy requirements (reference)
 ├── process_video_gemini_finisher.py   # Hybrid: local ASR + Gemini
 ├── process_video_gemini_only.py       # Cloud-only: all Gemini
 ├── process_video_local_only.py        # Offline: all local models
 ├── clear_gpu.py                       # GPU memory cleanup utility
 ├── test_gemini_key.py                 # API key validation
 ├── video_transcription/               # Shared library package
-│   ├── __init__.py
-│   ├── video_utils.py
-│   ├── keyframe.py
-│   ├── vad.py
-│   ├── asr.py
-│   ├── output.py
-│   ├── batch.py
-│   ├── gpu.py
-│   ├── compat.py
-│   └── prompts.py
-└── transcriptions/                    # Output directory
+│   ├── __init__.py                    # Public API exports
+│   ├── video_utils.py                 # FFmpeg operations
+│   ├── keyframe.py                    # Stable keyframe extraction
+│   ├── vad.py                         # VAD-based audio chunking
+│   ├── asr.py                         # ASR backends (5 models)
+│   ├── output.py                      # HTML assembly
+│   ├── batch.py                       # Batch processing
+│   ├── gpu.py                         # GPU memory management
+│   ├── compat.py                      # Compatibility patches
+│   └── prompts.py                     # LLM system prompts
+└── transcriptions/                    # Output directory (gitignored)
+```
+
+## Git Workflow
+
+```bash
+# Check status
+git status
+
+# Commit changes
+git add -A && git commit -m "Description"
+
+# Push to GitHub
+git push
+
+# The repo uses gh as credential helper (configured)
 ```
