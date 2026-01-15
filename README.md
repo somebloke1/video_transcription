@@ -30,6 +30,7 @@ python process_video_gemini_finisher.py video.mp4
 - **Smart Audio Chunking** - Handles long audio with VAD-based silence detection
 - **Batch Processing** - Process directories or file lists with error recovery
 - **Output Formats** - Clean Markdown or HTML with embedded images
+- **Flexible Keyframe Rendering** - Embedded images, Mermaid diagrams, or text descriptions
 
 ## Usage
 
@@ -63,7 +64,24 @@ python process_video_gemini_finisher.py --min-stable 5.0 video.mp4
 
 # Custom output directory
 python process_video_gemini_finisher.py -o ./output video.mp4
+
+# Keyframe rendering modes
+python process_video_gemini_finisher.py --format html -k markup video.mp4   # Mermaid diagrams
+python process_video_gemini_finisher.py --format clean -k brief video.mp4   # Short descriptions
 ```
+
+### Keyframe Rendering Modes
+
+Control how keyframes appear in output with `--keyframe-rendering` / `-k`:
+
+| Mode | Description | Best For |
+|------|-------------|----------|
+| `embedded` | Base64 images in HTML | Visual documentation (default for `--format html`) |
+| `markup` | Mermaid diagrams & structured notation | LLM consumption, smaller file size |
+| `brief` | 1-2 sentence descriptions | Quick summaries |
+| `detailed` | Full visual analysis paragraphs | Complete documentation (default for `--format clean`) |
+
+> **Note:** `markup` mode requires Gemini scripts for reliable diagram generation. The `local_only` script supports `embedded`, `brief`, and `detailed` modes only.
 
 ## Output
 
