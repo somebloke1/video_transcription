@@ -87,23 +87,30 @@ transcriptions/
 ### Setup
 ```bash
 # Create virtual environment
-python -m venv .venv
+uv venv .venv
 source .venv/bin/activate
 
 # PyTorch with CUDA (install first)
-pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu124
+uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-# Core dependencies
-pip install -r requirements.txt
+# Install based on your use case:
 
-# For WhisperX (recommended ASR, not on PyPI)
-pip install whisperx
+# Gemini scripts (recommended)
+uv pip install -e ".[gemini]"
 
-# For Canary/Parakeet (NeMo toolkit, install from git)
-pip install "nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git"
+# Full local-only processing
+uv pip install -e ".[local]"
 
-# For local-only processing (Qwen models)
-pip install autoawq qwen-vl-utils
+# Everything except special installs
+uv pip install -e ".[full]"
+
+# Additional ASR models (require special installation):
+
+# WhisperX (not on PyPI)
+uv pip install whisperx
+
+# Canary/Parakeet (NeMo from git)
+uv pip install "nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git"
 ```
 
 ### API Key

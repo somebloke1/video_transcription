@@ -1,0 +1,119 @@
+[project]
+name = "video-transcription"
+version = "1.0.0"
+description = "Video transcription pipeline for educational content with multiple ASR backends"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [
+    { name = "somebloke1" }
+]
+keywords = ["video", "transcription", "asr", "whisper", "gemini", "speech-to-text"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# =============================================================================
+# Core Dependencies (required by all scripts)
+# =============================================================================
+dependencies = [
+    "torch==2.6.0",
+    "torchaudio==2.6.0",
+    "transformers==4.57.5",
+    "pillow==12.0.0",
+    "imagehash==4.3.2",
+]
+
+# =============================================================================
+# Optional Dependencies
+# =============================================================================
+[project.optional-dependencies]
+
+# Gemini cloud API (for gemini_finisher and gemini_only scripts)
+gemini = [
+    "google-genai==1.57.0",
+]
+
+# WhisperX ASR (recommended, 70x faster with word-level timestamps)
+whisperx = [
+    # Note: whisperx must be installed separately as it's not on PyPI
+    # pip install whisperx
+]
+
+# OpenAI Whisper ASR
+whisper = [
+    "openai-whisper==20250625",
+]
+
+# Canary/Parakeet ASR (NeMo toolkit)
+# Note: nemo_toolkit must be installed from git:
+# pip install "nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git"
+canary = []
+
+# Granite Speech ASR (IBM, best accuracy)
+granite = [
+    "peft==0.18.1",
+    "soundfile==0.13.1",
+]
+
+# Local-only processing (Qwen vision + synthesis models)
+local = [
+    "qwen-vl-utils==0.0.8",
+    "autoawq==0.2.9",
+    "peft==0.18.1",
+    "soundfile==0.13.1",
+]
+
+# Full installation (all optional deps except nemo/whisperx which need special install)
+full = [
+    "google-genai==1.57.0",
+    "openai-whisper==20250625",
+    "peft==0.18.1",
+    "soundfile==0.13.1",
+    "qwen-vl-utils==0.0.8",
+    "autoawq==0.2.9",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+# =============================================================================
+# Build System
+# =============================================================================
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["video_transcription"]
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+# =============================================================================
+# UV Configuration (if using uv package manager)
+# =============================================================================
+[tool.uv]
+# PyTorch with CUDA needs special index
+extra-index-url = ["https://download.pytorch.org/whl/cu124"]
