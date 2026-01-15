@@ -97,7 +97,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 CONFIG = {
     "asr_model": "whisperx",
     "output_format": "clean",
-    "min_stable_seconds": 3.0
+    "min_stable_seconds": 3.0,
+    "prefix": ""
 }
 
 
@@ -216,7 +217,7 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
             f.write(format_transcript_segments(transcript_segments))
 
         # Copy to all_transcripts directory
-        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript)
+        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript, CONFIG["prefix"])
 
         print(f"\n🎉 Done!")
         print(f"   📄 Full transcript: {output_file}")
@@ -252,6 +253,8 @@ def main():
                         help="Output format: clean (readable prose) or html (with embedded images)")
     parser.add_argument("--min-stable", "-s", type=float, default=3.0,
                         help="Minimum seconds a frame must be stable to be captured (default: 3.0)")
+    parser.add_argument("--prefix", "-p", default="",
+                        help="String to prepend to transcript filenames in all_transcripts/")
 
     args = parser.parse_args()
 
@@ -274,6 +277,7 @@ def main():
     CONFIG["asr_model"] = args.asr
     CONFIG["output_format"] = args.format
     CONFIG["min_stable_seconds"] = args.min_stable
+    CONFIG["prefix"] = args.prefix
 
     format_info = {
         "clean": "Markdown (readable prose, no timestamps)",

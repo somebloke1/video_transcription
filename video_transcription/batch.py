@@ -172,7 +172,8 @@ def copy_to_all_transcripts(
     transcript_path: Path,
     video_name: str,
     output_dir: Path,
-    audio_transcript_path: Optional[Path] = None
+    audio_transcript_path: Optional[Path] = None,
+    prefix: str = ""
 ) -> Optional[Path]:
     """
     Copy transcripts to the all_transcripts directory with standardized naming.
@@ -186,6 +187,7 @@ def copy_to_all_transcripts(
         video_name: Original video filename (without extension).
         output_dir: Base output directory (e.g., ./transcriptions).
         audio_transcript_path: Optional path to raw audio transcript.
+        prefix: Optional string to prepend to all filenames.
 
     Returns:
         Path to the copied full transcript, or None if copy failed.
@@ -193,9 +195,9 @@ def copy_to_all_transcripts(
     Output structure:
         all_transcripts/
         ├── full/
-        │   └── <video_name>__transcript.<ext>
+        │   └── <prefix><video_name>__transcript.<ext>
         └── audio_only/
-            └── <video_name>__transcript.txt
+            └── <prefix><video_name>__transcript.txt
     """
     all_transcripts_dir = output_dir / "all_transcripts"
     full_dir = all_transcripts_dir / "full"
@@ -207,13 +209,13 @@ def copy_to_all_transcripts(
     try:
         # Copy full transcript
         ext = transcript_path.suffix
-        dest_name = f"{video_name}__transcript{ext}"
+        dest_name = f"{prefix}{video_name}__transcript{ext}"
         dest_path = full_dir / dest_name
         shutil.copy2(transcript_path, dest_path)
 
         # Copy audio-only transcript if provided
         if audio_transcript_path and audio_transcript_path.exists():
-            audio_dest_name = f"{video_name}__transcript.txt"
+            audio_dest_name = f"{prefix}{video_name}__transcript.txt"
             audio_dest_path = audio_dir / audio_dest_name
             shutil.copy2(audio_transcript_path, audio_dest_path)
 

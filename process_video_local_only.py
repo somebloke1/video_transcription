@@ -96,6 +96,7 @@ CONFIG = {
     "min_stable_seconds": 3.0,
     "output_format": "clean",
     "asr_model": "canary",  # Default to canary for technical content
+    "prefix": ""
 }
 
 
@@ -316,7 +317,7 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
                 f.write(f"[{format_timestamp(start)}] {text}\n")
 
         # Copy to all_transcripts directory
-        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript)
+        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript, CONFIG["prefix"])
 
         print(f"\n🎉 Done!")
         print(f"   📄 Transcript: {output_file}")
@@ -353,6 +354,8 @@ def main():
                         help="Output format: clean (markdown) or html (with images)")
     parser.add_argument("--min-stable", "-s", type=float, default=3.0,
                         help="Minimum seconds a frame must be stable (default: 3.0)")
+    parser.add_argument("--prefix", "-p", default="",
+                        help="String to prepend to transcript filenames in all_transcripts/")
 
     args = parser.parse_args()
 
@@ -375,6 +378,7 @@ def main():
     CONFIG["output_format"] = args.format
     CONFIG["min_stable_seconds"] = args.min_stable
     CONFIG["asr_model"] = args.asr
+    CONFIG["prefix"] = args.prefix
 
     format_info = {
         "clean": "Markdown (readable prose, no timestamps)",

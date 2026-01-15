@@ -72,7 +72,8 @@ gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
 # Config (mutable)
 CONFIG = {
     "output_format": "clean",
-    "min_stable_seconds": 3.0
+    "min_stable_seconds": 3.0,
+    "prefix": ""
 }
 
 
@@ -174,7 +175,7 @@ def process_video(video_path: Path, output_dir: Path) -> bool:
                 f.write(result)
 
         # Copy to all_transcripts directory
-        copy_to_all_transcripts(output_file, video_name, output_dir)
+        copy_to_all_transcripts(output_file, video_name, output_dir, None, CONFIG["prefix"])
 
         print(f"\n🎉 Done!")
         print(f"   📄 Transcript: {output_file}")
@@ -206,6 +207,8 @@ def main():
                         help="Output format: clean (readable prose) or html (with embedded images)")
     parser.add_argument("--min-stable", "-s", type=float, default=3.0,
                         help="Minimum seconds a frame must be stable to be captured (default: 3.0)")
+    parser.add_argument("--prefix", "-p", default="",
+                        help="String to prepend to transcript filenames in all_transcripts/")
 
     args = parser.parse_args()
 
@@ -227,6 +230,7 @@ def main():
 
     CONFIG["output_format"] = args.format
     CONFIG["min_stable_seconds"] = args.min_stable
+    CONFIG["prefix"] = args.prefix
 
     format_info = {
         "clean": "Markdown (readable prose, no timestamps)",
