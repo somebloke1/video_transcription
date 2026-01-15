@@ -66,6 +66,7 @@ from .batch import (
     collect_video_files,
     BatchResults,
     print_batch_header,
+    copy_to_all_transcripts,
     VIDEO_EXTENSIONS,
     DEFAULT_OUTPUT_DIR,
 )
@@ -141,6 +142,7 @@ __all__ = [
     "collect_video_files",
     "BatchResults",
     "print_batch_header",
+    "copy_to_all_transcripts",
     "VIDEO_EXTENSIONS",
     "DEFAULT_OUTPUT_DIR",
     # gpu

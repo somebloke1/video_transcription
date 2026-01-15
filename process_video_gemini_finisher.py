@@ -70,6 +70,7 @@ from video_transcription import (
     cleanup_gpu,
     BatchResults,
     print_batch_header,
+    copy_to_all_transcripts,
     DEFAULT_OUTPUT_DIR,
     get_clean_prompt_for_gemini_with_transcript,
     get_html_prompt_for_gemini_with_transcript,
@@ -213,6 +214,9 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
         raw_transcript = work_dir / "audio_transcript.txt"
         with open(raw_transcript, "w", encoding="utf-8") as f:
             f.write(format_transcript_segments(transcript_segments))
+
+        # Copy to all_transcripts directory
+        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript)
 
         print(f"\n🎉 Done!")
         print(f"   📄 Full transcript: {output_file}")

@@ -69,6 +69,7 @@ from video_transcription import (
     cleanup_gpu,
     BatchResults,
     print_batch_header,
+    copy_to_all_transcripts,
     DEFAULT_OUTPUT_DIR,
     get_clean_prompt_for_local_synthesis,
     get_html_prompt_for_local_synthesis,
@@ -313,6 +314,9 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
         with open(raw_transcript, "w", encoding="utf-8") as f:
             for start, end, text in transcript_segments:
                 f.write(f"[{format_timestamp(start)}] {text}\n")
+
+        # Copy to all_transcripts directory
+        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript)
 
         print(f"\n🎉 Done!")
         print(f"   📄 Transcript: {output_file}")

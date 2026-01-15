@@ -53,6 +53,7 @@ from video_transcription import (
     assemble_html,
     BatchResults,
     print_batch_header,
+    copy_to_all_transcripts,
     DEFAULT_OUTPUT_DIR,
     get_clean_prompt_for_gemini_with_audio,
     get_html_prompt_for_gemini_with_audio,
@@ -171,6 +172,9 @@ def process_video(video_path: Path, output_dir: Path) -> bool:
             output_file = work_dir / "transcript.md"
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(result)
+
+        # Copy to all_transcripts directory
+        copy_to_all_transcripts(output_file, video_name, output_dir)
 
         print(f"\n🎉 Done!")
         print(f"   📄 Transcript: {output_file}")

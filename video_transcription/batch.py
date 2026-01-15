@@ -5,9 +5,10 @@ This module provides functions for collecting video files from various
 input sources and tracking batch processing results.
 """
 
+import shutil
 import sys
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Optional
 
 # Supported video file extensions
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.webm', '.avi', '.mov']
@@ -165,3 +166,51 @@ def print_batch_header(video_path: Path, index: int, total: int) -> None:
     print(f"\n{'='*60}")
     print(f"📹 [{index}/{total}] {video_path.name}")
     print(f"{'='*60}")
+
+
+def copy_to_all_transcripts(
+    transcript_path: Path,
+    video_name: str,
+    output_dir: Path,
+    audio_transcript_path: Optional[Path] = None
+) -> Optional[Path]:
+    """
+    Copy transcript to the all_transcripts directory with standardized naming.
+
+    Creates a flat directory structure with all transcripts in one place
+    for easy access after batch processing.
+
+    Args:
+        transcript_path: Path to the transcript file (html or md).
+        video_name: Original video filename (without extension).
+        output_dir: Base output directory (e.g., ./transcriptions).
+        audio_transcript_path: Optional path to raw audio transcript.
+
+    Returns:
+        Path to the copied transcript, or None if copy failed.
+
+    Naming convention:
+        <video_name>__transcript.<ext>
+        <video_name>__audio_transcript.txt (if audio_transcript_path provided)
+    """
+    all_transcripts_dir = output_dir / "all_transcripts"
+    all_transcripts_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Copy main transcript
+        ext = transcript_path.suffix
+        dest_name = f"{video_name}__transcript{ext}"
+        dest_path = all_transcripts_dir / dest_name
+        shutil.copy2(transcript_path, dest_path)
+
+        # Copy audio transcript if provided
+        if audio_transcript_path and audio_transcript_path.exists():
+            audio_dest_name = f"{video_name}__audio_transcript.txt"
+            audio_dest_path = all_transcripts_dir / audio_dest_name
+            shutil.copy2(audio_transcript_path, audio_dest_path)
+
+        return dest_path
+
+    except Exception as e:
+        print(f"   ⚠ Failed to copy to all_transcripts: {e}")
+        return None
