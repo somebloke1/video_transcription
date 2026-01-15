@@ -62,6 +62,27 @@ The project uses three independent processing scripts, named by how language mod
 - **clean**: Readable Markdown prose without timestamps or image references
 - **html**: HTML document with embedded base64 keyframe images
 
+### Keyframe Rendering Modes (`--keyframe-rendering`, `-k`)
+
+Controls how keyframe images are represented in the output:
+
+| Mode | Description | Output | Default For |
+|------|-------------|--------|-------------|
+| `embedded` | Base64 images embedded in HTML | Actual images viewable in browser | `--format html` |
+| `markup` | Structured diagram notation | Mermaid diagrams, ASCII boxes, markdown tables | - |
+| `brief` | Short text description | 1-2 sentences per keyframe | - |
+| `detailed` | Full visual analysis | Complete paragraph describing all visual content | `--format clean` |
+
+**Script Support:**
+
+| Script | embedded | markup | brief | detailed |
+|--------|----------|--------|-------|----------|
+| gemini_only | ✓ | ✓ | ✓ | ✓ |
+| gemini_finisher | ✓ | ✓ | ✓ | ✓ |
+| local_only | ✓ | ✗ | ✓ | ✓ |
+
+Note: `markup` mode requires Gemini for reliable Mermaid diagram generation.
+
 ## ASR Model Options (gemini_finisher and local_only)
 
 | Model | VRAM | Speed | Best For |
@@ -105,6 +126,12 @@ python process_video_gemini_finisher.py --format html video.mp4
 
 # Adjust keyframe stability threshold
 python process_video_gemini_finisher.py --min-stable 5.0 video.mp4
+
+# Keyframe rendering modes
+python process_video_gemini_finisher.py --format html -k embedded video.mp4  # Default: images in HTML
+python process_video_gemini_finisher.py --format html -k markup video.mp4    # Mermaid diagrams
+python process_video_gemini_finisher.py --format clean -k brief video.mp4    # Short descriptions
+python process_video_gemini_finisher.py --format clean -k detailed video.mp4 # Full descriptions (default for clean)
 ```
 
 ## Output Structure

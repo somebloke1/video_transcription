@@ -59,6 +59,7 @@ from .output import (
     extract_title_from_html,
     clean_video_name_for_title,
     HTML_STYLES,
+    MERMAID_SCRIPT,
 )
 
 # Batch processing
@@ -87,6 +88,7 @@ from .compat import (
 
 # Prompts
 from .prompts import (
+    get_keyframe_instruction,
     get_clean_prompt_for_gemini_with_transcript,
     get_html_prompt_for_gemini_with_transcript,
     get_clean_prompt_for_gemini_with_audio,
@@ -94,6 +96,7 @@ from .prompts import (
     get_clean_prompt_for_local_synthesis,
     get_html_prompt_for_local_synthesis,
     get_vision_analysis_prompt,
+    get_vision_analysis_prompt_brief,
 )
 
 # ASR (Automatic Speech Recognition)
@@ -138,6 +141,7 @@ __all__ = [
     "extract_title_from_html",
     "clean_video_name_for_title",
     "HTML_STYLES",
+    "MERMAID_SCRIPT",
     # batch
     "collect_video_files",
     "BatchResults",
@@ -154,6 +158,7 @@ __all__ = [
     # compat
     "apply_nemo_transformers_patch",
     # prompts
+    "get_keyframe_instruction",
     "get_clean_prompt_for_gemini_with_transcript",
     "get_html_prompt_for_gemini_with_transcript",
     "get_clean_prompt_for_gemini_with_audio",
@@ -161,6 +166,7 @@ __all__ = [
     "get_clean_prompt_for_local_synthesis",
     "get_html_prompt_for_local_synthesis",
     "get_vision_analysis_prompt",
+    "get_vision_analysis_prompt_brief",
     # asr
     "load_asr_model",
     "unload_asr_model",

@@ -8,9 +8,22 @@ formatting timestamps, and extracting titles from content.
 import base64
 import re
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 from .video_utils import format_timestamp
+
+
+# Mermaid.js CDN script for diagram rendering
+MERMAID_SCRIPT = """
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+    </script>
+"""
 
 # CSS styles shared across all HTML output
 HTML_STYLES = """
@@ -96,36 +109,42 @@ def clean_video_name_for_title(video_name: str) -> str:
 def assemble_html(
     content: str,
     keyframes: List[Tuple[float, Path]],
-    video_name: str
+    video_name: str,
+    keyframe_rendering: str = "embedded"
 ) -> str:
     """
-    Assemble final HTML by replacing image placeholders with base64-encoded images.
+    Assemble final HTML document.
 
-    This function takes HTML content with {{IMAGE_N}} placeholders and replaces
-    them with base64 data URIs of the actual keyframe images.
+    For 'embedded' mode, replaces {{IMAGE_N}} placeholders with base64-encoded images.
+    For other modes (markup, brief, detailed), content already contains text representations.
 
     Args:
-        content: HTML content with {{IMAGE_N}} placeholders.
+        content: HTML content (with placeholders for embedded mode, or text for other modes).
         keyframes: List of (timestamp, frame_path) tuples.
         video_name: Video filename for fallback title.
+        keyframe_rendering: How keyframes are represented - 'embedded', 'markup', 'brief', 'detailed'.
 
     Returns:
         Complete HTML document string.
     """
-    # Create image data URIs
-    for i, (ts, frame_path) in enumerate(keyframes):
-        placeholder = f"{{{{IMAGE_{i+1}}}}}"
+    # Only replace image placeholders for embedded mode
+    if keyframe_rendering == "embedded":
+        for i, (ts, frame_path) in enumerate(keyframes):
+            placeholder = f"{{{{IMAGE_{i+1}}}}}"
 
-        if frame_path.exists():
-            with open(frame_path, "rb") as f:
-                image_data = base64.b64encode(f.read()).decode("utf-8")
-            data_uri = f"data:image/png;base64,{image_data}"
-            content = content.replace(placeholder, data_uri)
+            if frame_path.exists():
+                with open(frame_path, "rb") as f:
+                    image_data = base64.b64encode(f.read()).decode("utf-8")
+                data_uri = f"data:image/png;base64,{image_data}"
+                content = content.replace(placeholder, data_uri)
 
     # Extract title from first <h1> in content, or use fallback
     title = extract_title_from_html(content)
     if not title:
         title = clean_video_name_for_title(video_name)
+
+    # Include Mermaid.js for markup mode
+    mermaid_script = MERMAID_SCRIPT if keyframe_rendering == "markup" else ""
 
     # Wrap in full HTML document
     html = f"""<!DOCTYPE html>
@@ -133,7 +152,7 @@ def assemble_html(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
+    <title>{title}</title>{mermaid_script}
     <style>{HTML_STYLES}
     </style>
 </head>
@@ -148,7 +167,8 @@ def assemble_html(
 def assemble_html_with_descriptions(
     content: str,
     keyframe_descriptions: List[Tuple[float, Path, str]],
-    video_name: str
+    video_name: str,
+    keyframe_rendering: str = "embedded"
 ) -> str:
     """
     Assemble HTML for local_only pipeline with keyframe descriptions.
@@ -157,21 +177,24 @@ def assemble_html_with_descriptions(
     with format (timestamp, frame_path, description).
 
     Args:
-        content: HTML content with {{IMAGE_N}} placeholders.
+        content: HTML content (with placeholders for embedded mode, or text for other modes).
         keyframe_descriptions: List of (timestamp, frame_path, description) tuples.
         video_name: Video filename for fallback title.
+        keyframe_rendering: How keyframes are represented - 'embedded', 'brief', 'detailed'.
+                           ('markup' is not supported for local_only)
 
     Returns:
         Complete HTML document string.
     """
-    # Replace image placeholders
-    for i, (ts, frame_path, desc) in enumerate(keyframe_descriptions, 1):
-        placeholder = f"{{{{IMAGE_{i}}}}}"
-        if frame_path.exists():
-            with open(frame_path, "rb") as f:
-                image_data = base64.b64encode(f.read()).decode("utf-8")
-            data_uri = f"data:image/png;base64,{image_data}"
-            content = content.replace(placeholder, data_uri)
+    # Only replace image placeholders for embedded mode
+    if keyframe_rendering == "embedded":
+        for i, (ts, frame_path, desc) in enumerate(keyframe_descriptions, 1):
+            placeholder = f"{{{{IMAGE_{i}}}}}"
+            if frame_path.exists():
+                with open(frame_path, "rb") as f:
+                    image_data = base64.b64encode(f.read()).decode("utf-8")
+                data_uri = f"data:image/png;base64,{image_data}"
+                content = content.replace(placeholder, data_uri)
 
     # Extract title from first h1
     title = extract_title_from_html(content)

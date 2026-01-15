@@ -97,6 +97,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 CONFIG = {
     "asr_model": "whisperx",
     "output_format": "clean",
+    "keyframe_rendering": "detailed",  # default for clean, overridden based on format
     "min_stable_seconds": 3.0,
     "prefix": ""
 }
@@ -109,12 +110,13 @@ CONFIG = {
 def analyze_with_gemini(keyframes: list, transcript_segments: list, output_dir: Path) -> str:
     """Send keyframes + transcript to Gemini 2.5 Flash for synthesis."""
     output_format = CONFIG["output_format"]
-    print(f"\n🧠 [STAGE 2] Analyzing with Gemini 2.5 Flash (format: {output_format})...")
+    keyframe_rendering = CONFIG["keyframe_rendering"]
+    print(f"\n🧠 [STAGE 2] Analyzing with Gemini 2.5 Flash (format: {output_format}, keyframes: {keyframe_rendering})...")
 
     if output_format == "clean":
-        system_prompt = get_clean_prompt_for_gemini_with_transcript()
+        system_prompt = get_clean_prompt_for_gemini_with_transcript(keyframe_rendering)
     else:
-        system_prompt = get_html_prompt_for_gemini_with_transcript()
+        system_prompt = get_html_prompt_for_gemini_with_transcript(keyframe_rendering)
 
     contents = []
 
@@ -131,9 +133,12 @@ def analyze_with_gemini(keyframes: list, transcript_segments: list, output_dir: 
         contents.append(image_file)
 
     if output_format == "clean":
-        contents.append("\n\nPlease synthesize the transcript and visual content into a clean, readable document without timestamps or visual markers.")
+        contents.append("\n\nPlease synthesize the transcript and visual content into a clean, readable document without timestamps.")
     else:
-        contents.append("\n\nPlease synthesize the transcript and visual content into an HTML document with image placeholders.")
+        if keyframe_rendering == "embedded":
+            contents.append("\n\nPlease synthesize the transcript and visual content into an HTML document with image placeholders.")
+        else:
+            contents.append("\n\nPlease synthesize the transcript and visual content into an HTML document with text-based visual representations.")
 
     print("   🔄 Processing...")
 
@@ -200,9 +205,10 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
 
         # Step 4: Save results
         output_format = CONFIG["output_format"]
+        keyframe_rendering = CONFIG["keyframe_rendering"]
 
         if output_format == "html":
-            html_content = assemble_html(result, keyframes, video_name)
+            html_content = assemble_html(result, keyframes, video_name, keyframe_rendering)
             output_file = work_dir / "transcript.html"
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(html_content)
@@ -251,12 +257,28 @@ def main():
                              "Note: granite has best accuracy but no timestamps - images will be grouped at end of output")
     parser.add_argument("--format", "-f", choices=["clean", "html"], default="clean",
                         help="Output format: clean (readable prose) or html (with embedded images)")
+    parser.add_argument("--keyframe-rendering", "-k",
+                        choices=["embedded", "markup", "brief", "detailed"],
+                        default=None,
+                        help="Keyframe representation: embedded (images in HTML), "
+                             "markup (Mermaid diagrams), brief (short descriptions), "
+                             "detailed (full visual analysis). Default: embedded for html, detailed for clean")
     parser.add_argument("--min-stable", "-s", type=float, default=3.0,
                         help="Minimum seconds a frame must be stable to be captured (default: 3.0)")
     parser.add_argument("--prefix", "-p", default="",
                         help="String to prepend to transcript filenames in all_transcripts/")
 
     args = parser.parse_args()
+
+    # Set keyframe_rendering default based on format if not specified
+    if args.keyframe_rendering is None:
+        args.keyframe_rendering = "embedded" if args.format == "html" else "detailed"
+
+    # Validate incompatible combinations
+    if args.format == "clean" and args.keyframe_rendering == "embedded":
+        print("Error: Embedded keyframes require HTML format.")
+        print("Use --format html or choose a different keyframe mode (markup, brief, detailed).")
+        sys.exit(1)
 
     check_ffmpeg()
 
@@ -276,6 +298,7 @@ def main():
 
     CONFIG["asr_model"] = args.asr
     CONFIG["output_format"] = args.format
+    CONFIG["keyframe_rendering"] = args.keyframe_rendering
     CONFIG["min_stable_seconds"] = args.min_stable
     CONFIG["prefix"] = args.prefix
 
@@ -284,12 +307,20 @@ def main():
         "html": "HTML (with embedded images)"
     }
 
+    keyframe_info = {
+        "embedded": "Base64 images in HTML",
+        "markup": "Mermaid diagrams/structured notation",
+        "brief": "Short text descriptions",
+        "detailed": "Full visual analysis"
+    }
+
     print("🚀 Gemini Finisher - Hybrid Pipeline")
     print(f"   - Keyframes: Stable frame detection (min {args.min_stable}s)")
     print(f"   - Transcription: {ASR_MODEL_INFO[args.asr]}")
     print("   - Visual Analysis: Gemini 2.5 Flash (cloud)")
     print("   - Synthesis: Gemini 2.5 Flash (cloud)")
     print(f"   - Output Format: {format_info[args.format]}")
+    print(f"   - Keyframe Rendering: {keyframe_info[args.keyframe_rendering]}")
     print(f"   - Videos to process: {len(video_files)}")
 
     results = BatchResults()

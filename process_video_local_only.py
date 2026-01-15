@@ -74,6 +74,7 @@ from video_transcription import (
     get_clean_prompt_for_local_synthesis,
     get_html_prompt_for_local_synthesis,
     get_vision_analysis_prompt,
+    get_vision_analysis_prompt_brief,
     # ASR functions
     load_asr_model,
     unload_asr_model,
@@ -95,6 +96,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 CONFIG = {
     "min_stable_seconds": 3.0,
     "output_format": "clean",
+    "keyframe_rendering": "detailed",  # default for clean, overridden based on format
     "asr_model": "canary",  # Default to canary for technical content
     "prefix": ""
 }
@@ -104,9 +106,17 @@ CONFIG = {
 # Vision Analysis with Qwen2.5-VL
 # =============================================================================
 
-def analyze_keyframes(keyframes: list) -> list:
-    """Analyze keyframes using Qwen2.5-VL-7B."""
-    print("\n👁️ [STAGE 2] Analyzing keyframes with Qwen2.5-VL-7B...")
+def analyze_keyframes(keyframes: list, keyframe_rendering: str = "detailed") -> list:
+    """Analyze keyframes using Qwen2.5-VL-7B.
+
+    Args:
+        keyframes: List of (timestamp, frame_path) tuples.
+        keyframe_rendering: 'brief' or 'detailed' - affects vision prompt.
+
+    Returns:
+        List of (timestamp, frame_path, description) tuples.
+    """
+    print(f"\n👁️ [STAGE 2] Analyzing keyframes with Qwen2.5-VL-7B (mode: {keyframe_rendering})...")
 
     if torch.cuda.is_available():
         free_mem = torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated()
@@ -128,7 +138,11 @@ def analyze_keyframes(keyframes: list) -> list:
     ).to(device)
     print(f"   Model loaded on {device}")
 
-    vision_prompt = get_vision_analysis_prompt()
+    # Select vision prompt based on keyframe_rendering mode
+    if keyframe_rendering == "brief":
+        vision_prompt = get_vision_analysis_prompt_brief()
+    else:  # detailed or embedded (both use detailed descriptions)
+        vision_prompt = get_vision_analysis_prompt()
 
     descriptions = []
     for i, (ts, frame_path) in enumerate(keyframes):
@@ -200,11 +214,12 @@ def synthesize_document(keyframe_descriptions: list, transcript_segments: list) 
     print(f"   Model loaded (4-bit quantized) on cuda:0")
 
     output_format = CONFIG["output_format"]
+    keyframe_rendering = CONFIG["keyframe_rendering"]
 
     if output_format == "clean":
-        system_prompt = get_clean_prompt_for_local_synthesis()
+        system_prompt = get_clean_prompt_for_local_synthesis(keyframe_rendering)
     else:
-        system_prompt = get_html_prompt_for_local_synthesis()
+        system_prompt = get_html_prompt_for_local_synthesis(keyframe_rendering)
 
     # Build prompt with transcript and visual descriptions
     prompt = "## Audio Transcript:\n\n"
@@ -292,7 +307,8 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
             transcript_segments = []
 
         # Step 3: Analyze keyframes with vision model
-        keyframe_descriptions = analyze_keyframes(keyframes)
+        keyframe_rendering = CONFIG["keyframe_rendering"]
+        keyframe_descriptions = analyze_keyframes(keyframes, keyframe_rendering)
 
         # Step 4: Synthesize document
         result = synthesize_document(keyframe_descriptions, transcript_segments)
@@ -301,7 +317,7 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
         output_format = CONFIG["output_format"]
 
         if output_format == "html":
-            html_content = assemble_html_with_descriptions(result, keyframe_descriptions, video_name)
+            html_content = assemble_html_with_descriptions(result, keyframe_descriptions, video_name, keyframe_rendering)
             output_file = work_dir / "transcript.html"
             with open(output_file, "w", encoding="utf-8") as f:
                 f.write(html_content)
@@ -352,12 +368,36 @@ def main():
                              "Note: granite has best accuracy but no timestamps - images will be grouped at end of output")
     parser.add_argument("--format", "-f", choices=["clean", "html"], default="clean",
                         help="Output format: clean (markdown) or html (with images)")
+    parser.add_argument("--keyframe-rendering", "-k",
+                        choices=["embedded", "markup", "brief", "detailed"],
+                        default=None,
+                        help="Keyframe representation: embedded (images in HTML), "
+                             "brief (short descriptions), detailed (full visual analysis). "
+                             "Note: markup mode is not supported for local_only. "
+                             "Default: embedded for html, detailed for clean")
     parser.add_argument("--min-stable", "-s", type=float, default=3.0,
                         help="Minimum seconds a frame must be stable (default: 3.0)")
     parser.add_argument("--prefix", "-p", default="",
                         help="String to prepend to transcript filenames in all_transcripts/")
 
     args = parser.parse_args()
+
+    # Set keyframe_rendering default based on format if not specified
+    if args.keyframe_rendering is None:
+        args.keyframe_rendering = "embedded" if args.format == "html" else "detailed"
+
+    # Validate incompatible combinations
+    if args.format == "clean" and args.keyframe_rendering == "embedded":
+        print("Error: Embedded keyframes require HTML format.")
+        print("Use --format html or choose a different keyframe mode (brief, detailed).")
+        sys.exit(1)
+
+    # local_only doesn't support markup mode
+    if args.keyframe_rendering == "markup":
+        print("Error: Markup mode requires Gemini for reliable diagram generation.")
+        print("Use gemini_finisher.py or gemini_only.py for markup output,")
+        print("or choose brief/detailed mode.")
+        sys.exit(1)
 
     check_ffmpeg()
 
@@ -376,6 +416,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     CONFIG["output_format"] = args.format
+    CONFIG["keyframe_rendering"] = args.keyframe_rendering
     CONFIG["min_stable_seconds"] = args.min_stable
     CONFIG["asr_model"] = args.asr
     CONFIG["prefix"] = args.prefix
@@ -385,12 +426,19 @@ def main():
         "html": "HTML (with embedded images)"
     }
 
+    keyframe_info = {
+        "embedded": "Base64 images in HTML",
+        "brief": "Short text descriptions",
+        "detailed": "Full visual analysis"
+    }
+
     print("🚀 Local-Only Video Transcription (Optimized)")
     print(f"   - ASR: {ASR_MODEL_INFO[args.asr]}")
     print("   - Vision: Qwen2.5-VL-7B (~16GB VRAM)")
     print("   - Synthesis: Qwen2.5-14B-AWQ 4-bit (~10GB VRAM)")
     print(f"   - Keyframes: Stable detection (min {args.min_stable}s)")
     print(f"   - Output: {format_info[args.format]}")
+    print(f"   - Keyframe Rendering: {keyframe_info[args.keyframe_rendering]}")
     print(f"   - Videos: {len(video_files)}")
     print("   - Cloud APIs: None (fully offline)")
 
