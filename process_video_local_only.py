@@ -316,7 +316,7 @@ def process_video(video_path: Path, output_dir: Path, preloaded_model=None) -> b
                 f.write(f"[{format_timestamp(start)}] {text}\n")
 
         # Copy to all_transcripts directory
-        copy_to_all_transcripts(output_file, video_name, output_dir)
+        copy_to_all_transcripts(output_file, video_name, output_dir, raw_transcript)
 
         print(f"\n🎉 Done!")
         print(f"   📄 Transcript: {output_file}")

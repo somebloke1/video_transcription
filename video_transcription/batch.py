@@ -172,32 +172,51 @@ def copy_to_all_transcripts(
     transcript_path: Path,
     video_name: str,
     output_dir: Path,
+    audio_transcript_path: Optional[Path] = None
 ) -> Optional[Path]:
     """
-    Copy transcript to the all_transcripts directory with standardized naming.
+    Copy transcripts to the all_transcripts directory with standardized naming.
 
     Creates a flat directory structure with all transcripts in one place
-    for easy access after batch processing.
+    for easy access after batch processing. Full and audio-only transcripts
+    are placed in separate subdirectories.
 
     Args:
         transcript_path: Path to the transcript file (html or md).
         video_name: Original video filename (without extension).
         output_dir: Base output directory (e.g., ./transcriptions).
+        audio_transcript_path: Optional path to raw audio transcript.
 
     Returns:
-        Path to the copied transcript, or None if copy failed.
+        Path to the copied full transcript, or None if copy failed.
 
-    Naming convention:
-        <video_name>__transcript.<ext>
+    Output structure:
+        all_transcripts/
+        ├── full/
+        │   └── <video_name>__transcript.<ext>
+        └── audio_only/
+            └── <video_name>__transcript.txt
     """
     all_transcripts_dir = output_dir / "all_transcripts"
-    all_transcripts_dir.mkdir(parents=True, exist_ok=True)
+    full_dir = all_transcripts_dir / "full"
+    audio_dir = all_transcripts_dir / "audio_only"
+
+    full_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
 
     try:
+        # Copy full transcript
         ext = transcript_path.suffix
         dest_name = f"{video_name}__transcript{ext}"
-        dest_path = all_transcripts_dir / dest_name
+        dest_path = full_dir / dest_name
         shutil.copy2(transcript_path, dest_path)
+
+        # Copy audio-only transcript if provided
+        if audio_transcript_path and audio_transcript_path.exists():
+            audio_dest_name = f"{video_name}__transcript.txt"
+            audio_dest_path = audio_dir / audio_dest_name
+            shutil.copy2(audio_transcript_path, audio_dest_path)
+
         return dest_path
 
     except Exception as e:
